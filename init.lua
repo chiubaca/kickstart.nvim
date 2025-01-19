@@ -207,6 +207,8 @@ vim.keymap.set('n', '<C-k>', ':m .-2<CR>==', { noremap = true, silent = true }) 
 vim.keymap.set('v', '<C-j>', ":m '>+1<CR>gv=gv", { noremap = true, silent = true }) -- Move selection down
 vim.keymap.set('v', '<C-k>', ":m '<-2<CR>gv=gv", { noremap = true, silent = true }) -- Move selection up
 
+--vscode style "quickfix"
+vim.keymap.set('n', '<C-.>', vim.lsp.buf.code_action, { desc = 'Code Action' })
 -- window management
 -- vim.keymap.set(i, lhs, rhs, opts?)
 
