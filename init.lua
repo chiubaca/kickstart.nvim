@@ -197,8 +197,14 @@ vim.keymap.set('n', '<C-q>', '<cmd> q <CR>', opt)
 vim.keymap.set('n', 'x', '"_x', opt)
 -- delete word without copying
 vim.keymap.set('n', 'cw', '"_cw', opt)
---keep last yanked when pasting
--- vim.keymap.set(mode, lhs, rhs, )
+
+-- Move lines up and down in normal mode
+vim.keymap.set('n', '<C-j>', ':m .+1<CR>==', { noremap = true, silent = true }) -- Move line down
+vim.keymap.set('n', '<C-k>', ':m .-2<CR>==', { noremap = true, silent = true }) -- Move line up
+
+-- Move selected lines up and down in visual mode
+vim.keymap.set('v', '<C-j>', ":m '>+1<CR>gv=gv", { noremap = true, silent = true }) -- Move selection down
+vim.keymap.set('v', '<C-k>', ":m '<-2<CR>gv=gv", { noremap = true, silent = true }) -- Move selection up
 
 -- window management
 -- vim.keymap.set(i, lhs, rhs, opts?)
