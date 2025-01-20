@@ -653,12 +653,6 @@ require('lazy').setup({
         ts_ls = {},
         --
         -- Add biome to the list of LSP servers
-        biome = {
-          -- Biome will handle formatting for supported files
-          settings = {
-            -- You can add Biome-specific settings here if needed
-          },
-        },
         lua_ls = {
           settings = {
             Lua = {
@@ -738,12 +732,7 @@ require('lazy').setup({
       end,
       formatters_by_ft = {
         lua = { 'stylua' },
-        -- Add Biome formatting support for JavaScript/TypeScript files
-        javascript = { 'biome' },
-        typescript = { 'biome' },
-        javascriptreact = { 'biome' },
-        typescriptreact = { 'biome' },
-        json = { 'biome' },
+        
         -- Conform can also run multiple formatters sequentially
         -- python = { "isort", "black" },
         --
