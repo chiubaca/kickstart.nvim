@@ -97,11 +97,15 @@ vim.g.have_nerd_font = true
 -- NOTE: You can change these options as you wish!
 --  For more options, you can see `:help option-list`
 
+-- NOTE: The VSCode-flavoured layer -- keymaps, diagnostics presentation and a
+-- handful more options -- lives in `lua/custom/vscode.lua`, required at the very
+-- bottom of this file. Read that first if a keybinding here seems to do nothing.
+
 -- Make line numbers default
 vim.opt.number = true
--- You can also add relative line numbers, to help with jumping.
---  Experiment for yourself to see if you like it!
-vim.opt.relativenumber = true
+-- VSCode shows absolute line numbers. Flip this back to true for relative ones,
+-- which are handy for jumping (`5j`, `d3k`).
+vim.opt.relativenumber = false
 
 -- Enable mouse mode, can be useful for resizing splits for example!
 vim.opt.mouse = 'a'
@@ -143,8 +147,10 @@ vim.opt.splitbelow = true
 -- Sets how neovim will display certain whitespace characters in the editor.
 --  See `:help 'list'`
 --  and `:help 'listchars'`
+--  Tab arrows are dropped to match VSCode, which renders nothing for indent;
+--  the indent guides from indent-blankline carry that job instead.
 vim.opt.list = true
-vim.opt.listchars = { tab = '» ', trail = '·', nbsp = '␣' }
+vim.opt.listchars = { trail = '·', nbsp = '␣' }
 
 -- Preview substitutions live, as you type!
 vim.opt.inccommand = 'split'
@@ -180,18 +186,15 @@ vim.keymap.set('t', '<Esc><Esc>', '<C-\\><C-n>', { desc = 'Exit terminal mode' }
 -- vim.keymap.set('n', '<up>', '<cmd>echo "Use k to move!!"<CR>')
 -- vim.keymap.set('n', '<down>', '<cmd>echo "Use j to move!!"<CR>')
 
--- Keybinds to make split navigation easier.
---  Use CTRL+<hjkl> to switch between windows
+-- Window navigation stays on the native `<C-w>` prefix: <C-w>h/j/k/l.
+--  The <C-h/j/k/l> bindings that used to be here were both broken: <C-h>'s
+--  right-hand side had a stray `<D-s>` inside it, and <C-j>/<C-k> were
+--  overwritten a few lines later by the move-line maps. Move-line now lives in
+--  `lua/custom/vscode.lua` on Alt+Up/Down, keeping <C-j>/<C-k> as twins.
 --
 --  See `:help wincmd` for a list of all window commands
-vim.keymap.set('n', '<C-h>', '<C-w><C-h<D-s>>', { desc = 'Move focus to the left window' })
-vim.keymap.set('n', '<C-l>', '<C-w><C-l>', { desc = 'Move focus to the right window' })
-vim.keymap.set('n', '<C-j>', '<C-w><C-j>', { desc = 'Move focus to the lower window' })
-vim.keymap.set('n', '<C-k>', '<C-w><C-k>', { desc = 'Move focus to the upper window' })
 
 local opt = { noremap = true, silent = true }
--- save file
-vim.keymap.set('n', '<C-s>', '<cmd> w <CR>', opt)
 -- quit file
 vim.keymap.set('n', '<C-q>', '<cmd> q <CR>', opt)
 -- delete chracter without copying
@@ -199,19 +202,8 @@ vim.keymap.set('n', 'x', '"_x', opt)
 -- delete word without copying
 vim.keymap.set('n', 'cw', '"_cw', opt)
 
--- Move lines up and down in normal mode
-vim.keymap.set('n', '<C-j>', ':m .+1<CR>==', { noremap = true, silent = true }) -- Move line down
-vim.keymap.set('n', '<C-k>', ':m .-2<CR>==', { noremap = true, silent = true }) -- Move line up
-
--- Move selected lines up and down in visual mode
-vim.keymap.set('v', '<C-j>', ":m '>+1<CR>gv=gv", { noremap = true, silent = true }) -- Move selection down
-vim.keymap.set('v', '<C-k>', ":m '<-2<CR>gv=gv", { noremap = true, silent = true }) -- Move selection up
-
---vscode style "quickfix"
-vim.keymap.set('n', '<C-.>', vim.lsp.buf.code_action, { desc = 'Code Action' })
-
--- window management
--- vim.keymap.set(i, lhs, rhs, opts?)
+-- NOTE: <C-s> (save) and <C-.> (code action) moved to `lua/custom/vscode.lua`,
+-- which also binds them in insert and visual mode.
 
 -- [[ Basic Autocommands ]]
 --  See `:help lua-guide-autocommands`
@@ -346,6 +338,9 @@ require('lazy').setup({
         { '<leader>w', group = '[W]orkspace' },
         { '<leader>t', group = '[T]oggle' },
         { '<leader>h', group = 'Git [H]unk', mode = { 'n', 'v' } },
+        { '<leader>b', group = '[B]uffer / editor tab' },
+        { '<leader>x', group = 'Problems (Trouble)' },
+        { '<leader>n', group = '[N]pm package' },
       },
     },
   },
@@ -406,12 +401,12 @@ require('lazy').setup({
       require('telescope').setup {
         -- You can put your default mappings / updates / etc. in here
         --  All the info you're looking for is in `:help telescope.setup()`
-        --
-        -- defaults = {
-        --   mappings = {
-        --     i = { ['<c-enter>'] = 'to_fuzzy_refine' },
-        --   },
-        -- },
+        defaults = {
+          file_ignore_patterns = { 'dist', 'node_modules', '.git/' },
+          -- mappings = {
+          --   i = { ['<c-enter>'] = 'to_fuzzy_refine' },
+          -- },
+        },
         -- pickers = {}
         extensions = {
           ['ui-select'] = {
@@ -779,6 +774,9 @@ require('lazy').setup({
       --  into multiple repos for maintenance purposes.
       'hrsh7th/cmp-nvim-lsp',
       'hrsh7th/cmp-path',
+
+      -- Per-kind icons for the suggestion menu, matching VSCode.
+      'onsails/lspkind.nvim',
     },
     config = function()
       -- See `:help cmp`
@@ -792,46 +790,73 @@ require('lazy').setup({
             luasnip.lsp_expand(args.body)
           end,
         },
+        -- VSCode preselects the first suggestion and accepts it on Enter. If
+        -- Enter stealing your newlines gets annoying, swap `noinsert` for
+        -- `noselect` here and nothing will be preselected.
         completion = { completeopt = 'menu,menuone,noinsert' },
 
-        -- For an understanding of why these mappings were
-        -- chosen, you will need to read `:help ins-completion`
-        --
-        -- No, but seriously. Please read `:help ins-completion`, it is really good!
+        window = {
+          completion = cmp.config.window.bordered(),
+          documentation = cmp.config.window.bordered(),
+        },
+
+        -- Inline preview of the top suggestion, like VSCode's ghost text.
+        experimental = { ghost_text = true },
+
+        -- Per-kind icons, as in VSCode's suggest widget.
+        formatting = {
+          format = require('lspkind').cmp_format {
+            mode = 'symbol_text',
+            maxwidth = 50,
+            ellipsis_char = '…',
+          },
+        },
+
+        -- Tab or Enter accepts, Up/Down walks the list, Ctrl+Space asks for
+        -- suggestions, Ctrl+E dismisses them -- VSCode's defaults.
+        --  See `:help ins-completion` for what this replaces.
         mapping = cmp.mapping.preset.insert {
-          -- Select the [n]ext item
+          ['<Tab>'] = cmp.mapping(function(fallback)
+            if cmp.visible() then
+              cmp.confirm { select = true }
+            elseif luasnip.expand_or_locally_jumpable() then
+              luasnip.expand_or_jump()
+            else
+              fallback()
+            end
+          end, { 'i', 's' }),
+
+          ['<S-Tab>'] = cmp.mapping(function(fallback)
+            if cmp.visible() then
+              cmp.select_prev_item()
+            elseif luasnip.locally_jumpable(-1) then
+              luasnip.jump(-1)
+            else
+              fallback()
+            end
+          end, { 'i', 's' }),
+
+          ['<CR>'] = cmp.mapping(function(fallback)
+            if cmp.visible() and cmp.get_active_entry() then
+              cmp.confirm { select = false }
+            else
+              fallback()
+            end
+          end, { 'i', 's' }),
+
+          ['<Down>'] = cmp.mapping.select_next_item(),
+          ['<Up>'] = cmp.mapping.select_prev_item(),
           ['<C-n>'] = cmp.mapping.select_next_item(),
-          -- Select the [p]revious item
           ['<C-p>'] = cmp.mapping.select_prev_item(),
 
           -- Scroll the documentation window [b]ack / [f]orward
           ['<C-b>'] = cmp.mapping.scroll_docs(-4),
           ['<C-f>'] = cmp.mapping.scroll_docs(4),
 
-          -- Accept ([y]es) the completion.
-          --  This will auto-import if your LSP supports it.
-          --  This will expand snippets if the LSP sent a snippet.
-          -- ['<C-y>'] = cmp.mapping.confirm { select = true },
-
-          -- If you prefer more traditional completion keymaps,
-          -- you can uncomment the following lines
-          ['<Tab>'] = cmp.mapping.confirm { select = true },
-          -- ['<Tab>'] = cmp.mapping.select_next_item(),
-          -- ['<S-Tab>'] = cmp.mapping.select_prev_item(),
-
-          -- Manually trigger a completion from nvim-cmp.
-          --  Generally you don't need this, because nvim-cmp will display
-          --  completions whenever it has completion options available.
           ['<C-Space>'] = cmp.mapping.complete {},
+          ['<C-e>'] = cmp.mapping.abort(),
 
-          -- Think of <c-l> as moving to the right of your snippet expansion.
-          --  So if you have a snippet that's like:
-          --  function $name($args)
-          --    $body
-          --  end
-          --
-          -- <c-l> will move you to the right of each of the expansion locations.
-          -- <c-h> is similar, except moving you backwards.
+          -- <C-l> / <C-h> step forward and back through snippet placeholders.
           ['<C-l>'] = cmp.mapping(function()
             if luasnip.expand_or_locally_jumpable() then
               luasnip.expand_or_jump()
@@ -972,12 +997,19 @@ require('lazy').setup({
   require 'kickstart.plugins.gitsigns', -- adds gitsigns recommend keymaps
   require 'kickstart.plugins.lazygit',
   require 'kickstart.plugins.npm',
-  require 'kickstart.plugins.telescope',
+  -- NOTE: `kickstart.plugins.telescope` is deliberately not required. It declared
+  -- a second, conflicting Telescope spec (tag 0.1.8 against the branch 0.1.x
+  -- pinned above), printed on every startup, and its `<space>f` mapping shadowed
+  -- conform's `<leader>f` format binding. Its one useful setting,
+  -- `file_ignore_patterns`, has been folded into the Telescope spec above.
+  -- The file is left on disk so you can diff it before deleting.
   -- NOTE: The import below can automatically add your own plugins, configuration, etc from `lua/custom/plugins/*.lua`
   --    This is the easiest way to modularize your config.
   --
-  --  Uncomment the following line and add your plugins to `lua/custom/plugins/*.lua` to get going.
-  -- { import = 'custom.plugins' },
+  --  Add your plugins to `lua/custom/plugins/*.lua` to get going. The
+  --  VSCode-flavoured plugins (editor tabs, terminal panel, problems panel,
+  --  multi-cursor, breadcrumbs, sticky scroll) live there.
+  { import = 'custom.plugins' },
   --
   -- For additional information with loading, sourcing and examples see `:help lazy.nvim-🔌-plugin-spec`
   -- Or use telescope!
@@ -1004,6 +1036,12 @@ require('lazy').setup({
     },
   },
 })
+
+-- [[ VSCode-flavoured keymaps, options and autocmds ]]
+--  Required last on purpose: everything in here overrides the bindings set
+--  above. See the header of that file for the full key list and for the handful
+--  of Vim defaults it gives up.
+require 'custom.vscode'
 
 -- The line beneath this is called `modeline`. See `:help modeline`
 -- vim: ts=2 sts=2 sw=2 et
